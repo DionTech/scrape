@@ -59,14 +59,13 @@ func (scrapeDefintion *ScrapeDefintion) Scrape() {
 	responses := make(chan response)
 
 	for i := 0; i < scrapeDefintion.Threads; i++ {
-		//this is a really simple rate limiter here at the moment!
-		//@TODO make it better!!!
-		limiter := time.Tick(scrapeDefintion.RateLimit)
-
 		go func() {
+			//this is a really simple rate limiter here at the moment!
+			//@TODO make it better!!!
+			limiter := time.Tick(scrapeDefintion.RateLimit)
 			for req := range requests {
-				<-limiter
 				responses <- goRequest(req)
+				<-limiter
 			}
 		}()
 	}
@@ -108,10 +107,12 @@ func (scrapeDefintion *ScrapeDefintion) respFwd(requests chan request, responses
 
 		for _, additionalURL := range additionalURLs {
 
+			IndexMutex.RLock()
 			if _, ok := Index[additionalURL]; ok == false {
 				ResponseWaitGroup.Add(1)
 				go scrapeDefintion.pushRequest(additionalURL, requests)
 			}
+			IndexMutex.RUnlock()
 
 		}
 		//line := fmt.Sprintf("%s %s (%s)\n", path, res.request.URL(), res.status)
