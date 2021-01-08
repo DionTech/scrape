@@ -27,6 +27,7 @@ var httpClient = &http.Client{
 }
 
 func goRequest(r request) response {
+	fmt.Println(r.url)
 	httpClient.Timeout = r.timeout
 
 	if !r.followLocation {
@@ -40,6 +41,7 @@ func goRequest(r request) response {
 	req, err = http.NewRequest(r.method, r.url, nil)
 
 	if err != nil {
+		RequestWaitGroup.Done()
 		return response{request: r, err: err}
 	}
 	req.Close = true
@@ -62,6 +64,7 @@ func goRequest(r request) response {
 		defer resp.Body.Close()
 	}
 	if err != nil {
+		RequestWaitGroup.Done()
 		return response{request: r, err: err}
 	}
 	body, _ := ioutil.ReadAll(resp.Body)
@@ -73,6 +76,8 @@ func goRequest(r request) response {
 			hs = append(hs, fmt.Sprintf("%s: %s", k, v))
 		}
 	}
+
+	RequestWaitGroup.Done()
 
 	return response{
 		request:    r,

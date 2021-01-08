@@ -2,7 +2,6 @@ package scrape
 
 import (
 	"errors"
-	"fmt"
 	"net/url"
 	"os"
 	"sync"
@@ -23,6 +22,9 @@ type ScrapeDefintion struct {
 var Index scrapeIndex
 
 var IndexMutex = sync.RWMutex{}
+
+var RequestWaitGroup sync.WaitGroup
+var ResponseWaitGroup sync.WaitGroup
 
 func (scrapeDefintion *ScrapeDefintion) Validate() bool {
 	if scrapeDefintion.Threads == 0 {
@@ -56,11 +58,7 @@ func (scrapeDefintion *ScrapeDefintion) Scrape() {
 	requests := make(chan request, scrapeDefintion.Threads)
 	responses := make(chan response)
 
-	// spin up some workers to do the requests
-	var wg sync.WaitGroup
 	for i := 0; i < scrapeDefintion.Threads; i++ {
-		wg.Add(1)
-
 		//this is a really simple rate limiter here at the moment!
 		//@TODO make it better!!!
 		limiter := time.Tick(scrapeDefintion.RateLimit)
@@ -70,53 +68,37 @@ func (scrapeDefintion *ScrapeDefintion) Scrape() {
 				<-limiter
 				responses <- goRequest(req)
 			}
-			wg.Done()
 		}()
 	}
 
-	wg.Add(1)
-	go func() {
-		for req := range requests {
-			fmt.Println(req.url)
-		}
-		wg.Done()
-	}()
+	go scrapeDefintion.respFwd(requests, responses)
 
-	// start outputting the response lines; we need a second
-	// WaitGroup so we know the outputting has finished
-	var owg sync.WaitGroup
-	owg.Add(1)
+	ResponseWaitGroup.Add(1)
+	go scrapeDefintion.pushRequest(scrapeDefintion.Domain, requests)
 
-	go scrapeDefintion.respFwd(requests, responses, &owg)
+	RequestWaitGroup.Wait()
+	ResponseWaitGroup.Wait()
 
-	//Index.Store(scrapeDefintion.Domain, true)
-	Index[scrapeDefintion.Domain] = true
+}
+
+func (scrapeDefintion *ScrapeDefintion) pushRequest(domain string, requests chan request) {
+	IndexMutex.Lock()
+	Index[domain] = true
+	IndexMutex.Unlock()
+	RequestWaitGroup.Add(1)
 
 	requests <- request{
 		method:         "GET",
-		url:            scrapeDefintion.Domain,
+		url:            domain,
 		followLocation: true}
-
-	// once all of the requests have been sent we can
-	// close the requests channel
-	//close(requests)
-
-	// wait for all the workers to finish before closing
-	// the responses channel
-	wg.Wait()
-	close(responses)
-
-	owg.Wait()
 }
 
-func (scrapeDefintion *ScrapeDefintion) respFwd(requests chan request, responses chan response, owg *sync.WaitGroup) {
+func (scrapeDefintion *ScrapeDefintion) respFwd(requests chan request, responses chan response) {
 	for res := range responses {
-
 		if res.err != nil {
 			stdoutformat.Printf("request failed: %s\n", res.err)
 			continue
 		}
-
 		_, err := res.save(scrapeDefintion.OutputDir)
 		if err != nil {
 			stdoutformat.Printf("failed to save file: %s\n", err)
@@ -125,23 +107,16 @@ func (scrapeDefintion *ScrapeDefintion) respFwd(requests chan request, responses
 		additionalURLs := res.scan()
 
 		for _, additionalURL := range additionalURLs {
-			if _, ok := Index[additionalURL]; ok == false {
-				//Index.Store(additionalURL, true)
-				IndexMutex.Lock()
-				Index[additionalURL] = true
-				IndexMutex.Unlock()
 
-				requests <- request{
-					method:         "GET",
-					url:            additionalURL,
-					followLocation: true}
+			if _, ok := Index[additionalURL]; ok == false {
+				ResponseWaitGroup.Add(1)
+				go scrapeDefintion.pushRequest(additionalURL, requests)
 			}
 
 		}
-
 		//line := fmt.Sprintf("%s %s (%s)\n", path, res.request.URL(), res.status)
+		ResponseWaitGroup.Done()
 	}
-	owg.Done()
 }
 
 func (scrapeDefintion *ScrapeDefintion) mkOutPutDir() {
