@@ -12,6 +12,7 @@ func main() {
 
 	var outputDir string
 	flag.StringVar(&outputDir, "output-directory", "./scrape", "where to store scrape")
+	flag.StringVar(&outputDir, "o", "./scrape", "where to store scrape")
 
 	//options: RateLimit, Threads
 

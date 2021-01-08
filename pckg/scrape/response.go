@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/DionTech/scrape/pckg/parsehtml"
 )
@@ -93,10 +94,13 @@ func (r response) save(pathPrefix string) (string, error) {
 	return p, nil
 }
 
-func (r response) scan() {
+func (r response) scan() []string {
+	additionalURLs := make([]string, 0)
+
 	requestURL, err := url.Parse(r.request.url)
 	if err != nil {
 		log.Fatal(err)
+		return additionalURLs
 	}
 
 	for _, additionalURL := range parsehtml.ExtractAttribs(bytes.NewReader(r.body),
@@ -115,6 +119,19 @@ func (r response) scan() {
 			parsed.Host = requestURL.Host
 		}
 
-		fmt.Println(parsed.String())
+		parsedHostname := parsed.Hostname()
+		requestHostname := requestURL.Hostname()
+
+		parsedHostname = strings.Replace(parsedHostname, "www.", "", 1)
+		requestHostname = strings.Replace(requestHostname, "www.", "", 1)
+
+		//@TODO: make an option to follow out of domain!!!
+		if parsedHostname != requestHostname {
+			continue
+		}
+
+		additionalURLs = append(additionalURLs, parsed.String())
 	}
+
+	return additionalURLs
 }
