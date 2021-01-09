@@ -28,8 +28,8 @@ func main() {
 	flag.IntVar(&rateLimit, "r", 250, "short for rate-limit")
 
 	var followInternal bool
-	flag.BoolVar(&followInternal, "internal-follow", false, "follow links found which are at same domain to scraped domain")
-	flag.BoolVar(&followInternal, "i", false, "short for internal-follow")
+	flag.BoolVar(&followInternal, "deep", false, "follow links found which are at same domain to scraped domain")
+	flag.BoolVar(&followInternal, "d", false, "short for deep")
 
 	flag.Parse()
 
