@@ -31,6 +31,9 @@ func main() {
 	flag.BoolVar(&followInternal, "deep", false, "follow links found which are at same domain to scraped domain")
 	flag.BoolVar(&followInternal, "d", false, "short for deep")
 
+	var userAgent string
+	flag.StringVar(&userAgent, "user-agent", "Mozilla/5.0 (compatible; scrape/1.0; +github.com/DionTech/scrape)", "change default suer-agent if you want to'")
+
 	flag.Parse()
 
 	domain := flag.Arg(0)
@@ -51,6 +54,8 @@ func main() {
 	if !scrapeDefintion.Validate() {
 		return
 	}
+
+	scrape.UserAgent = userAgent
 
 	scrapeDefintion.Init()
 	scrapeDefintion.Scrape()

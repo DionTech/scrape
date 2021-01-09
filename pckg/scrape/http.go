@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-var userAgent = "Mozilla/5.0 (compatible; scrape/1.0; +github.com/DionTech/scrape)"
+var UserAgent = "Mozilla/5.0 (compatible; scrape/1.0; +github.com/DionTech/scrape)"
 
 var transport = &http.Transport{
 	TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
@@ -47,7 +47,7 @@ func goRequest(r request) response {
 	req.Close = true
 
 	if !r.HasHeader("User-Agent") {
-		r.headers = append(r.headers, fmt.Sprintf("User-Agent: %s", userAgent))
+		r.headers = append(r.headers, fmt.Sprintf("User-Agent: %s", UserAgent))
 	}
 
 	for _, h := range r.headers {
@@ -68,7 +68,7 @@ func goRequest(r request) response {
 		return response{request: r, err: err}
 	}
 	body, _ := ioutil.ReadAll(resp.Body)
-	//fmt.Println(string(body))
+
 	// extract the response headers
 	hs := make([]string, 0)
 	for k, vs := range resp.Header {

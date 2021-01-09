@@ -21,15 +21,33 @@ scrape
 ## basic usage
 
 ``` zsh
-scrape https://www.devports.de
+scrape -deep https://www.devports.de
 ```
 
 will produce a directory scrape inside current folder and store scraped content there. Default waiting after a request is 250ms, to not to stress the web server. You can change this behavior.
 
 ## advanced usage
 
+### Use more threads:
+
 ```zsh
-scrape -r 500 -t 5 https://www.devports.de
+scrape -deep -r 500 -t 5 https://www.devports.de
 ```
 
 will use 5 threads to scrape; after each request in a thread, it will wait 500ms before doing the next one. 
+
+### scrape a specif path template
+
+For example, you want to have a lookup for specific backend paths, you can do it with following command:
+
+```zsh
+scrape -tp ./template https://www.devports.de
+```
+
+Inside the ./template file, you have to  provide a file with some paths; each one is a new line. Something like this for example:
+
+```
+/robots.txt
+/backend/login
+/login
+```
