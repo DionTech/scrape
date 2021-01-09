@@ -38,7 +38,7 @@ func main() {
 
 	domain := flag.Arg(0)
 
-	if domain == "" || help {
+	if help {
 		flag.PrintDefaults()
 		return
 	}
