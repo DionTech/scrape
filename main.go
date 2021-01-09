@@ -43,5 +43,6 @@ func main() {
 		return
 	}
 
+	scrapeDefintion.Init()
 	scrapeDefintion.Scrape()
 }

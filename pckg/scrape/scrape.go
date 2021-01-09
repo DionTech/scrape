@@ -17,6 +17,8 @@ type ScrapeDefintion struct {
 	OutputDir string
 	Threads   int
 	RateLimit time.Duration
+	Requests  chan request
+	Responses chan response
 }
 
 var Index scrapeIndex
@@ -25,6 +27,11 @@ var IndexMutex = sync.RWMutex{}
 
 var RequestWaitGroup sync.WaitGroup
 var ResponseWaitGroup sync.WaitGroup
+
+func (scrapeDefintion *ScrapeDefintion) Init() {
+	scrapeDefintion.Requests = make(chan request, scrapeDefintion.Threads)
+	scrapeDefintion.Responses = make(chan response)
+}
 
 func (scrapeDefintion *ScrapeDefintion) Validate() bool {
 	if scrapeDefintion.Threads == 0 {
@@ -53,47 +60,42 @@ func (scrapeDefintion *ScrapeDefintion) Scrape() {
 
 	Index = make(scrapeIndex, 0)
 
-	// the request and response channels for
-	// the worker pool
-	requests := make(chan request, scrapeDefintion.Threads)
-	responses := make(chan response)
-
 	for i := 0; i < scrapeDefintion.Threads; i++ {
 		go func() {
 			//this is a really simple rate limiter here at the moment!
 			//@TODO make it better!!!
 			limiter := time.Tick(scrapeDefintion.RateLimit)
-			for req := range requests {
-				responses <- goRequest(req)
+			for req := range scrapeDefintion.Requests {
+				scrapeDefintion.Responses <- goRequest(req)
 				<-limiter
 			}
 		}()
 	}
 
-	go scrapeDefintion.respFwd(requests, responses)
+	go scrapeDefintion.respFwd()
 
 	ResponseWaitGroup.Add(1)
-	go scrapeDefintion.pushRequest(scrapeDefintion.Domain, requests)
+	go scrapeDefintion.pushRequest(scrapeDefintion.Domain)
 
 	RequestWaitGroup.Wait()
 	ResponseWaitGroup.Wait()
 
 }
 
-func (scrapeDefintion *ScrapeDefintion) pushRequest(domain string, requests chan request) {
+func (scrapeDefintion *ScrapeDefintion) pushRequest(domain string) {
 	IndexMutex.Lock()
 	Index[domain] = true
 	IndexMutex.Unlock()
 	RequestWaitGroup.Add(1)
 
-	requests <- request{
+	scrapeDefintion.Requests <- request{
 		method:         "GET",
 		url:            domain,
 		followLocation: true}
 }
 
-func (scrapeDefintion *ScrapeDefintion) respFwd(requests chan request, responses chan response) {
-	for res := range responses {
+func (scrapeDefintion *ScrapeDefintion) respFwd() {
+	for res := range scrapeDefintion.Responses {
 		if res.err != nil {
 			stdoutformat.Printf("request failed: %s\n", res.err)
 			continue
@@ -110,7 +112,7 @@ func (scrapeDefintion *ScrapeDefintion) respFwd(requests chan request, responses
 			IndexMutex.RLock()
 			if _, ok := Index[additionalURL]; ok == false {
 				ResponseWaitGroup.Add(1)
-				go scrapeDefintion.pushRequest(additionalURL, requests)
+				go scrapeDefintion.pushRequest(additionalURL)
 			}
 			IndexMutex.RUnlock()
 
