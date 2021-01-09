@@ -1,6 +1,7 @@
 package scrape
 
 import (
+	"bufio"
 	"errors"
 	"net/url"
 	"os"
@@ -12,13 +13,18 @@ import (
 
 type scrapeIndex map[string]bool
 
+/** ScrapeDefintion
+holds all options about doing scraping
+*/
 type ScrapeDefintion struct {
-	Domain    string
-	OutputDir string
-	Threads   int
-	RateLimit time.Duration
-	Requests  chan request
-	Responses chan response
+	Domain         string
+	OutputDir      string
+	Threads        int
+	TemplatePath   string
+	RateLimit      time.Duration
+	FollowInternal bool
+	Requests       chan request
+	Responses      chan response
 }
 
 var Index scrapeIndex
@@ -52,6 +58,13 @@ func (scrapeDefintion *ScrapeDefintion) Validate() bool {
 		return false
 	}
 
+	if scrapeDefintion.TemplatePath != "" {
+		if _, err := os.Stat(scrapeDefintion.TemplatePath); os.IsNotExist(err) {
+			stdoutformat.Error(errors.New("Template Path must be valid"))
+			return false
+		}
+	}
+
 	return true
 }
 
@@ -62,8 +75,7 @@ func (scrapeDefintion *ScrapeDefintion) Scrape() {
 
 	for i := 0; i < scrapeDefintion.Threads; i++ {
 		go func() {
-			//this is a really simple rate limiter here at the moment!
-			//@TODO make it better!!!
+			//waiting x ms after each request
 			limiter := time.Tick(scrapeDefintion.RateLimit)
 			for req := range scrapeDefintion.Requests {
 				scrapeDefintion.Responses <- goRequest(req)
@@ -76,6 +88,10 @@ func (scrapeDefintion *ScrapeDefintion) Scrape() {
 
 	ResponseWaitGroup.Add(1)
 	go scrapeDefintion.pushRequest(scrapeDefintion.Domain)
+
+	if scrapeDefintion.TemplatePath != "" {
+		scrapeDefintion.pushTemplate()
+	}
 
 	RequestWaitGroup.Wait()
 	ResponseWaitGroup.Wait()
@@ -105,6 +121,12 @@ func (scrapeDefintion *ScrapeDefintion) respFwd() {
 			stdoutformat.Printf("failed to save file: %s\n", err)
 		}
 
+		//when not follow internal, we can quit here
+		if scrapeDefintion.FollowInternal == false {
+			ResponseWaitGroup.Done()
+			continue
+		}
+
 		additionalURLs := res.scan()
 
 		for _, additionalURL := range additionalURLs {
@@ -117,8 +139,21 @@ func (scrapeDefintion *ScrapeDefintion) respFwd() {
 			IndexMutex.RUnlock()
 
 		}
-		//line := fmt.Sprintf("%s %s (%s)\n", path, res.request.URL(), res.status)
+
 		ResponseWaitGroup.Done()
+	}
+}
+
+func (scrapeDefintion *ScrapeDefintion) pushTemplate() {
+	file, _ := os.Open(scrapeDefintion.TemplatePath)
+
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+
+	for scanner.Scan() {
+		additionalURL := scrapeDefintion.Domain + scanner.Text()
+		ResponseWaitGroup.Add(1)
+		go scrapeDefintion.pushRequest(additionalURL)
 	}
 }
 
