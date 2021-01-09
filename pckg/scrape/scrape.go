@@ -159,11 +159,13 @@ func (scrapeDefintion *ScrapeDefintion) pushTemplate() {
 
 func (scrapeDefintion *ScrapeDefintion) mkOutPutDir() {
 	//check if to have to make a dir
-	if _, err := os.Stat(scrapeDefintion.OutputDir); os.IsNotExist(err) {
-		err := os.Mkdir(scrapeDefintion.OutputDir, 0755)
+	dir := scrapeDefintion.OutputDir + "/" + scrapeDefintion.Domain
+
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		err := os.Mkdir(dir, 0755)
 
 		if err != nil {
-			stdoutformat.Fatalf("cannot create output dir %s", scrapeDefintion.OutputDir)
+			stdoutformat.Fatalf("cannot create output dir %s", dir)
 		}
 	}
 }

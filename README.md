@@ -1,3 +1,7 @@
+# about
+
+scrape was written to scrape a site fast and also store header information to can grep them. It is part of an ethical hacking reconnaissance part. So sure, you can scrape the whole domain with each path that could be found, but you can also scrape only some specific paths dependent to your own experienced template.
+
 # install
 
 At the moment, there is no real install script provided. You need to have go installed (locally I have developed and tested it with version 1.14.3), so you can call
@@ -7,7 +11,6 @@ go install
 ```
 
 After the binary was produced, you can make an alias for your terminal, if you want to - I made an alias called "scrape" and following examples will use this alias.
-
 
 # usage
 
