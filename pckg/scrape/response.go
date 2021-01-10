@@ -8,7 +8,7 @@ import (
 	"log"
 	"net/url"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/DionTech/scrape/pckg/parsehtml"
@@ -67,7 +67,8 @@ func (r response) StringNoHeaders() string {
 // save write a request and response output to disk
 func (r response) save(pathPrefix string) (string, error) {
 
-	//DK: changed, cause we are intersted in headers!
+	//DK: changed, cause we are intersted in headers!;
+	//we can think about making this optionable
 	//content := []byte(r.StringNoHeaders())
 	content := []byte(r.String())
 
@@ -77,10 +78,10 @@ func (r response) save(pathPrefix string) (string, error) {
 	parts = append(parts, r.request.url)
 	parts = append(parts, fmt.Sprintf("%x", checksum))
 
-	p := path.Join(parts...)
+	p := filepath.Join(parts...)
 
-	if _, err := os.Stat(path.Dir(p)); os.IsNotExist(err) {
-		err = os.MkdirAll(path.Dir(p), 0750)
+	if _, err := os.Stat(filepath.Dir(p)); os.IsNotExist(err) {
+		err = os.MkdirAll(filepath.Dir(p), 0750)
 		if err != nil {
 			return p, err
 		}

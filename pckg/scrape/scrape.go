@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/url"
 	"os"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -145,7 +146,7 @@ func (scrapeDefintion *ScrapeDefintion) respFwd() {
 }
 
 func (scrapeDefintion *ScrapeDefintion) pushTemplate() {
-	file, _ := os.Open(scrapeDefintion.TemplatePath)
+	file, _ := os.Open(filepath.FromSlash(scrapeDefintion.TemplatePath))
 
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
@@ -159,11 +160,12 @@ func (scrapeDefintion *ScrapeDefintion) pushTemplate() {
 
 func (scrapeDefintion *ScrapeDefintion) mkOutPutDir() {
 	//check if to have to make a dir
-	if _, err := os.Stat(scrapeDefintion.OutputDir); os.IsNotExist(err) {
-		err := os.Mkdir(scrapeDefintion.OutputDir, 0755)
+	dir := filepath.FromSlash(scrapeDefintion.OutputDir)
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		err := os.Mkdir(dir, 0755)
 
 		if err != nil {
-			stdoutformat.Fatalf("cannot create output dir %s", scrapeDefintion.OutputDir)
+			stdoutformat.Fatalf("cannot create output dir %s", dir)
 		}
 	}
 }
