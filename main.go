@@ -59,4 +59,5 @@ func main() {
 
 	scrapeDefintion.Init()
 	scrapeDefintion.Scrape()
+	scrapeDefintion.Save()
 }

@@ -95,13 +95,14 @@ func (r response) save(pathPrefix string) (string, error) {
 	return p, nil
 }
 
-func (r response) scan() []string {
-	additionalURLs := make([]string, 0)
+func (r response) scan() (additionalURLs []string, outgoingLinks []string) {
+	additionalURLs = make([]string, 0)
+	outgoingLinks = make([]string, 0)
 
 	requestURL, err := url.Parse(r.request.url)
 	if err != nil {
 		log.Fatal(err)
-		return additionalURLs
+		return nil, additionalURLs
 	}
 
 	for _, additionalURL := range parsehtml.ExtractAttribs(bytes.NewReader(r.body),
@@ -126,13 +127,15 @@ func (r response) scan() []string {
 		parsedHostname = strings.Replace(parsedHostname, "www.", "", 1)
 		requestHostname = strings.Replace(requestHostname, "www.", "", 1)
 
-		//@TODO: make an option to follow out of domain!!!
 		if parsedHostname != requestHostname {
+			if _, err := url.ParseRequestURI(parsed.String()); err == nil {
+				outgoingLinks = append(outgoingLinks, parsed.String())
+			}
 			continue
 		}
 
 		additionalURLs = append(additionalURLs, parsed.String())
 	}
 
-	return additionalURLs
+	return additionalURLs, outgoingLinks
 }

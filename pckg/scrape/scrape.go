@@ -3,6 +3,7 @@ package scrape
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -29,6 +30,7 @@ type ScrapeDefintion struct {
 }
 
 var Index scrapeIndex
+var OutgoingLinks scrapeIndex
 
 var IndexMutex = sync.RWMutex{}
 
@@ -38,6 +40,38 @@ var ResponseWaitGroup sync.WaitGroup
 func (scrapeDefintion *ScrapeDefintion) Init() {
 	scrapeDefintion.Requests = make(chan request, scrapeDefintion.Threads)
 	scrapeDefintion.Responses = make(chan response)
+}
+
+func (scrapeDefintion *ScrapeDefintion) Save() {
+	indexFileName := "index"
+	indexFile, err := os.Create(indexFileName)
+
+	if err != nil {
+		stdoutformat.Fatalf("cannot create file: %s", err)
+	}
+	writer := bufio.NewWriter(indexFile)
+
+	for url := range Index {
+		writer.WriteString(url + "\n")
+	}
+
+	writer.Flush()
+
+	outgoingLinksFileName := "outgoing-links"
+	file, err := os.Create(outgoingLinksFileName)
+
+	if err != nil {
+		stdoutformat.Fatalf("cannot create file: %s", err)
+	}
+
+	w := bufio.NewWriter(file)
+
+	for url := range OutgoingLinks {
+		fmt.Println(url)
+		w.WriteString(url + "\n")
+	}
+
+	w.Flush()
 }
 
 func (scrapeDefintion *ScrapeDefintion) Validate() bool {
@@ -73,6 +107,7 @@ func (scrapeDefintion *ScrapeDefintion) Scrape() {
 	scrapeDefintion.mkOutPutDir()
 
 	Index = make(scrapeIndex, 0)
+	OutgoingLinks = make(scrapeIndex, 0)
 
 	for i := 0; i < scrapeDefintion.Threads; i++ {
 		go func() {
@@ -128,7 +163,15 @@ func (scrapeDefintion *ScrapeDefintion) respFwd() {
 			continue
 		}
 
-		additionalURLs := res.scan()
+		additionalURLs, outgoingLinks := res.scan()
+
+		go func(outgoingLinks []string) {
+			for _, outgoingLink := range outgoingLinks {
+				if _, ok := OutgoingLinks[outgoingLink]; ok == false {
+					OutgoingLinks[outgoingLink] = true
+				}
+			}
+		}(outgoingLinks)
 
 		for _, additionalURL := range additionalURLs {
 
