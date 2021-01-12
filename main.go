@@ -31,6 +31,9 @@ func main() {
 	flag.BoolVar(&followInternal, "deep", false, "follow links found which are at same domain to scraped domain")
 	flag.BoolVar(&followInternal, "d", false, "short for deep")
 
+	var pathBinding string
+	flag.StringVar(&pathBinding, "path-binding", "", "scrape only urls, which contains a specific path")
+
 	var userAgent string
 	flag.StringVar(&userAgent, "user-agent", "Mozilla/5.0 (compatible; scrape/1.0; +github.com/DionTech/scrape)", "change default suer-agent if you want to'")
 
@@ -49,6 +52,7 @@ func main() {
 		Threads:        threads,
 		TemplatePath:   templatePath,
 		FollowInternal: followInternal,
+		PathBinding:    pathBinding,
 		RateLimit:      time.Duration(rateLimit) * time.Millisecond}
 
 	if !scrapeDefintion.Validate() {
