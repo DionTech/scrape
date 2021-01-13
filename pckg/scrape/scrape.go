@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -25,6 +26,7 @@ type ScrapeDefintion struct {
 	TemplatePath   string
 	RateLimit      time.Duration
 	FollowInternal bool
+	PathBinding    string
 	Requests       chan request
 	Responses      chan response
 }
@@ -177,8 +179,16 @@ func (scrapeDefintion *ScrapeDefintion) respFwd() {
 
 			IndexMutex.RLock()
 			if _, ok := Index[additionalURL]; ok == false {
-				ResponseWaitGroup.Add(1)
-				go scrapeDefintion.pushRequest(additionalURL)
+				if scrapeDefintion.PathBinding != "" {
+					if strings.Contains(additionalURL, scrapeDefintion.PathBinding) {
+						ResponseWaitGroup.Add(1)
+						go scrapeDefintion.pushRequest(additionalURL)
+					}
+				} else {
+					ResponseWaitGroup.Add(1)
+					go scrapeDefintion.pushRequest(additionalURL)
+				}
+
 			}
 			IndexMutex.RUnlock()
 
